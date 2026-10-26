@@ -20,7 +20,7 @@ services:
     name: finwallet-backend
     runtime: docker
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /api/v1/health
     dockerfilePath: ./backend/Dockerfile
     envVars:
@@ -58,7 +58,7 @@ services:
     name: finwallet-frontend
     runtime: docker
     region: oregon
-    plan: starter
+    plan: free
     healthCheckPath: /
     dockerfilePath: ./frontend/Dockerfile
     envVars:
