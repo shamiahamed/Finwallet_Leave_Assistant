@@ -27,8 +27,10 @@ COPY backend/app /app/backend/app
 # Create data directories (will be mounted as volume)
 RUN mkdir -p /app/data/uploads /app/data/monitoring
 
-# Expose port
-EXPOSE 8000
+# Bind to the platform-assigned port. Render injects PORT at runtime; the
+# fallback keeps local Docker Compose working (it maps "8000:8000").
+ENV PORT=8000
+EXPOSE $PORT
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

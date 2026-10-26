@@ -45,9 +45,9 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Local data
+# Local data - the employee workbook is never built into the image.
+# It is supplied at runtime via a Render secret file pointed to by WORKBOOK_PATH.
 *.xlsx
-!data/AI_Engineer_Leave_Management_Dataset.xlsx
 data/uploads/*
 data/monitoring/*
 *.db

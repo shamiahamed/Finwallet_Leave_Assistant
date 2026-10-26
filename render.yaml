@@ -1,0 +1,74 @@
+# Render deployment for Finwallet Leave Management Assistant.
+#
+# Two independent Docker web services. They do NOT share a Docker network, so
+# the frontend must reach the backend via its public HTTPS URL (BACKEND_TARGET).
+#
+# Settings you MUST complete in the Render dashboard (not in this file):
+#   1. Backend -> Environment -> GROQ_API_KEY  (the real Groq key; never committed)
+#   2. Backend -> Files -> Secret File -> mount at /opt/secret/workbook.xlsx
+#      (the employee workbook; never committed to Git or the image)
+#   3. Backend -> Custom Domain (optional) and Frontend -> Custom Domain (optional)
+#   4. Frontend -> Environment -> BACKEND_TARGET
+#      = https://<backend-service-name>.onrender.com
+#      (use the exact public URL shown on the Backend service's Settings page)
+
+services:
+  - type: web
+    name: finwallet-backend
+    env: docker
+    region: oregon
+    plan: starter
+    domain: finwallet-backend.onrender.com
+    healthCheckPath: /api/v1/health
+    build:
+      dockerfile: backend/Dockerfile
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: WORKBOOK_PATH
+        value: /opt/secret/workbook.xlsx
+      - key: WORKBOOK_AUTO_REFRESH
+        value: "true"
+      - key: UPLOAD_DIR
+        value: /app/data/uploads
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: MAX_UPLOAD_ROWS
+        value: "20000"
+      - key: MAX_UPLOAD_COLUMNS
+        value: "100"
+      - key: MAX_RETRIEVED_CHUNKS
+        value: "5"
+      - key: MIN_RELEVANCE_SCORE
+        value: "0.0"
+      - key: GROQ_CIRCUIT_FAILURE_THRESHOLD
+        value: "3"
+      - key: GROQ_CIRCUIT_COOLDOWN_SECONDS
+        value: "30"
+      - key: FRONTEND_ORIGIN
+        value: https://finwallet-frontend.onrender.com
+      - key: GROQ_API_KEY
+        # Set the real value in the Render dashboard. Do NOT paste it here.
+        sync: false
+
+  - type: web
+    name: finwallet-frontend
+    env: docker
+    region: oregon
+    plan: starter
+    domain: finwallet-frontend.onrender.com
+    healthCheckPath: /
+    build:
+      dockerfile: frontend/Dockerfile
+    envVars:
+      - key: PORT
+        # Render assigns this; the Dockerfile's ENV PORT=80 is only the fallback.
+        sync: false
+      - key: BACKEND_SCHEME
+        value: https
+      - key: BACKEND_TARGET
+        # The public HTTPS host:port of the backend service. Replace with the
+        # exact URL from the Backend service's Settings page if you rename it.
+        value: finwallet-backend.onrender.com:443
