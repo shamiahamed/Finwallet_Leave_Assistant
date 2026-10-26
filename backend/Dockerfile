@@ -32,5 +32,5 @@ RUN mkdir -p /app/data/uploads /app/data/monitoring
 ENV PORT=8000
 EXPOSE $PORT
 
-# Run the application
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run the application (download workbook from WORKBOOK_URL if missing)
+CMD ["sh", "-c", "if [ -n \"$WORKBOOK_URL\" ] && [ ! -f \"$WORKBOOK_PATH\" ]; then mkdir -p $(dirname \"$WORKBOOK_PATH\"); curl -L -o \"$WORKBOOK_PATH\" \"$WORKBOOK_URL\" || true; fi; exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
