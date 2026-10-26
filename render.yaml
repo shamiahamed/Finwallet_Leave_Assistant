@@ -9,8 +9,11 @@
 #      (the employee workbook; never committed to Git or the image)
 #   3. Backend -> Custom Domain (optional) and Frontend -> Custom Domain (optional)
 #   4. Frontend -> Environment -> BACKEND_TARGET
-#      = https://<backend-service-name>.onrender.com
-#      (use the exact public URL shown on the Backend service's Settings page)
+#      = <backend-service-name>.onrender.com:443
+#      (use the exact public hostname:port shown on the Backend service's Settings page)
+#   5. Backend -> Environment -> FRONTEND_ORIGIN
+#      = https://<frontend-service-name>.onrender.com
+#      (update after the frontend gets its assigned URL)
 
 services:
   - type: web
@@ -18,7 +21,6 @@ services:
     env: docker
     region: oregon
     plan: starter
-    domain: finwallet-backend.onrender.com
     healthCheckPath: /api/v1/health
     build:
       dockerfile: backend/Dockerfile
@@ -48,7 +50,7 @@ services:
       - key: GROQ_CIRCUIT_COOLDOWN_SECONDS
         value: "30"
       - key: FRONTEND_ORIGIN
-        value: https://finwallet-frontend.onrender.com
+        value: https://REPLACE-WITH-ACTUAL-FRONTEND-URL.onrender.com
       - key: GROQ_API_KEY
         # Set the real value in the Render dashboard. Do NOT paste it here.
         sync: false
@@ -58,7 +60,6 @@ services:
     env: docker
     region: oregon
     plan: starter
-    domain: finwallet-frontend.onrender.com
     healthCheckPath: /
     build:
       dockerfile: frontend/Dockerfile
@@ -69,6 +70,5 @@ services:
       - key: BACKEND_SCHEME
         value: https
       - key: BACKEND_TARGET
-        # The public HTTPS host:port of the backend service. Replace with the
-        # exact URL from the Backend service's Settings page if you rename it.
-        value: finwallet-backend.onrender.com:443
+        # Use the exact backend hostname:port from the Backend service's Settings page.
+        value: REPLACE-WITH-ACTUAL-BACKEND-HOSTNAME:443
