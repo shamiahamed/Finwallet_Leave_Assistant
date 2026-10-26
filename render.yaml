@@ -18,12 +18,11 @@
 services:
   - type: web
     name: finwallet-backend
-    env: docker
+    runtime: docker
     region: oregon
     plan: starter
     healthCheckPath: /api/v1/health
-    build:
-      dockerfile: backend/Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     envVars:
       - key: APP_ENV
         value: production
@@ -57,12 +56,11 @@ services:
 
   - type: web
     name: finwallet-frontend
-    env: docker
+    runtime: docker
     region: oregon
     plan: starter
     healthCheckPath: /
-    build:
-      dockerfile: frontend/Dockerfile
+    dockerfilePath: ./frontend/Dockerfile
     envVars:
       - key: PORT
         # Render assigns this; the Dockerfile's ENV PORT=80 is only the fallback.
