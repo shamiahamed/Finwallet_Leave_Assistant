@@ -1259,7 +1259,9 @@ def _prepare_answer(
                     lowered_q = question.lower()
                     req_limit = limit
                     if re.search(r"\b(show\s+more|next\s+\d+|more\s+results)\b", lowered_q):
-                        req_limit = (limit or 50) * 2
+                        req_limit = (limit or 50) * 3
+                        if req_limit < 30:
+                            req_limit = 30
                     result = dispatch_query(
                         intent,
                         employees,
