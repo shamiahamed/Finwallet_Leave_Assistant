@@ -516,8 +516,8 @@ def _prepare_answer(
     balances: BalanceService,
     policies: PolicyService,
     departments: DepartmentService,
-    documents: DocumentQAService | None,
-    settings: Settings,
+    documents: Any | None,
+    settings: Any,
     limit: int | None = None,
 ) -> _PreparedAnswer:
     question = _validate_question(question)
