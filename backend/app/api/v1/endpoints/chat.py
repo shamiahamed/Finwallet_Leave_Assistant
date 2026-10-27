@@ -668,26 +668,26 @@ def _prepare_answer(
                 metrics = None
 
             else:
-        # Resolve clear, high-confidence cases without calling the LLM.
-        lowered_q = question.lower()
-        if re.search(r"\b(show\s+more|next\s+\d+|next\s+page|more\s+results)\b", lowered_q) and context.last_intent == "leave_requests" and context.last_request_filters:
-            filters = context.last_request_filters
-            intent = QueryIntent(
-                intent="leave_requests",
-                scope="all",
-                employee_id=filters.get("employee_id"),
-                employee_name=filters.get("employee_name"),
-                leave_type=filters.get("leave_type"),
-                approval_status=filters.get("approval_status"),
-                department=filters.get("department"),
-                start_date=filters.get("start_date"),
-                end_date=filters.get("end_date"),
-                date_mode=filters.get("date_mode") or "overlap",
-                currently_on_leave=bool(filters.get("currently_on_leave")),
-            )
-            metrics = None
-        else:
-            intent = _deterministic_intent(question, employees)
+                # Resolve clear, high-confidence cases without calling the LLM.
+                lowered_q = question.lower()
+                if re.search(r"\b(show\s+more|next\s+\d+|next\s+page|more\s+results)\b", lowered_q) and context.last_intent == "leave_requests" and context.last_request_filters:
+                    filters = context.last_request_filters
+                    intent = QueryIntent(
+                        intent="leave_requests",
+                        scope="all",
+                        employee_id=filters.get("employee_id"),
+                        employee_name=filters.get("employee_name"),
+                        leave_type=filters.get("leave_type"),
+                        approval_status=filters.get("approval_status"),
+                        department=filters.get("department"),
+                        start_date=filters.get("start_date"),
+                        end_date=filters.get("end_date"),
+                        date_mode=filters.get("date_mode") or "overlap",
+                        currently_on_leave=bool(filters.get("currently_on_leave")),
+                    )
+                    metrics = None
+                else:
+                    intent = _deterministic_intent(question, employees)
             metrics = None
 
             if intent is None:
