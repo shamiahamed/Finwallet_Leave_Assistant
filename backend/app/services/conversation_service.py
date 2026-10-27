@@ -51,6 +51,10 @@ class ConversationContext:
     pending_leave_type: str | None = None
     pending_department: str | None = None
 
+    last_request_filters: dict[str, Any] = field(default_factory=dict)
+    last_request_offset: int = 0
+    last_request_ids: list[str] = field(default_factory=list)
+
     history: list[dict[str, Any]] = field(default_factory=list)
     created_at: datetime = field(default_factory=_now)
     updated_at: datetime = field(default_factory=_now)
@@ -154,6 +158,7 @@ class ConversationService:
         result: Any,
         scope: str = "single",
         compared: bool = False,
+        filters: dict[str, Any] | None = None,
     ) -> None:
         context.last_intent = intent
         context.updated_at = _now()
@@ -172,6 +177,22 @@ class ConversationService:
         else:
             self._clear_document_scope(context)
             self._clear_compared_documents(context)
+
+        try:
+            if intent == "leave_requests" and isinstance(result, dict):
+                if filters:
+                    context.last_request_filters = dict(filters)
+                else:
+                    context.last_request_filters = dict(result.get("filters_applied") or {})
+                reqs = result.get("requests") or []
+                ids = []
+                for r in reqs:
+                    if isinstance(r, dict) and r.get("request_id"):
+                        ids.append(r["request_id"])
+                context.last_request_ids = ids
+                context.last_request_offset = len(ids)
+        except Exception:
+            pass
 
         # A broad result must not preserve a previously active employee.
         if intent in NON_EMPLOYEE_INTENTS or (

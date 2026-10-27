@@ -668,21 +668,39 @@ def _prepare_answer(
                 metrics = None
 
             else:
-                # Resolve clear, high-confidence cases without calling the LLM.
-                intent = _deterministic_intent(question, employees)
-                metrics = None
+        # Resolve clear, high-confidence cases without calling the LLM.
+        lowered_q = question.lower()
+        if re.search(r"\b(show\s+more|next\s+\d+|next\s+page|more\s+results)\b", lowered_q) and context.last_intent == "leave_requests" and context.last_request_filters:
+            filters = context.last_request_filters
+            intent = QueryIntent(
+                intent="leave_requests",
+                scope="all",
+                employee_id=filters.get("employee_id"),
+                employee_name=filters.get("employee_name"),
+                leave_type=filters.get("leave_type"),
+                approval_status=filters.get("approval_status"),
+                department=filters.get("department"),
+                start_date=filters.get("start_date"),
+                end_date=filters.get("end_date"),
+                date_mode=filters.get("date_mode") or "overlap",
+                currently_on_leave=bool(filters.get("currently_on_leave")),
+            )
+            metrics = None
+        else:
+            intent = _deterministic_intent(question, employees)
+            metrics = None
 
-                if intent is None:
-                    intent, metrics = parse_intent(
-                        question,
-                        context=context,
-                    )
+            if intent is None:
+                intent, metrics = parse_intent(
+                    question,
+                    context=context,
+                )
 
-                    intent = _apply_deterministic_routing(
-                        question,
-                        intent,
-                        employees,
-                    )
+                intent = _apply_deterministic_routing(
+                    question,
+                    intent,
+                    employees,
+                )
 
         if intent.intent == "greeting":
             intent = QueryIntent(intent="clarify", scope="single")
@@ -1238,6 +1256,10 @@ def _prepare_answer(
                         date_mode=intent.date_mode,
                     )
                 else:
+                    lowered_q = question.lower()
+                    req_limit = limit
+                    if re.search(r"\b(show\s+more|next\s+\d+|more\s+results)\b", lowered_q):
+                        req_limit = (limit or 50) * 2
                     result = dispatch_query(
                         intent,
                         employees,
@@ -1249,7 +1271,7 @@ def _prepare_answer(
                         documents=documents,
                         settings=settings,
                         document_names=comparison_names,
-                        limit=limit,
+                        limit=req_limit,
                     )
 
             except AppError:
@@ -1304,13 +1326,25 @@ def _commit_answer(prepared: _PreparedAnswer) -> None:
         )
 
     if prepared.intent.intent not in {"greeting", "help"}:
-        conversation_service.update_from_result(
-            prepared.context,
-            prepared.intent.intent,
-            prepared.result,
-            scope=getattr(prepared.intent, "scope", "single"),
-            compared=prepared.compared,
-        )
+        try:
+            if prepared.intent.intent == "leave_requests":
+                pass
+            else:
+                conversation_service.update_from_result(
+                    prepared.context,
+                    prepared.intent.intent,
+                    prepared.result,
+                    scope=getattr(prepared.intent, "scope", "single"),
+                    compared=prepared.compared,
+                )
+        except Exception:
+            conversation_service.update_from_result(
+                prepared.context,
+                prepared.intent.intent,
+                prepared.result,
+                scope=getattr(prepared.intent, "scope", "single"),
+                compared=prepared.compared,
+            )
 
     if prepared.pending_to_set:
         conversation_service.set_pending_clarification(
@@ -1321,6 +1355,28 @@ def _commit_answer(prepared: _PreparedAnswer) -> None:
             leave_type=prepared.intent.leave_type,
             department=prepared.intent.department,
         )
+
+    try:
+        if prepared.intent.intent == "leave_requests":
+            filters = getattr(prepared.intent, "__dict__", {})
+            applied = {}
+            for k in ["employee_id", "employee_name", "leave_type", "approval_status", "start_date", "end_date", "department", "date_mode", "currently_on_leave"]:
+                v = getattr(prepared.intent, k, None)
+                if v is not None and v != "":
+                    if hasattr(v, "isoformat"):
+                        applied[k] = v.isoformat()
+                    else:
+                        applied[k] = v
+            conversation_service.update_from_result(
+                prepared.context,
+                prepared.intent.intent,
+                prepared.result,
+                scope=getattr(prepared.intent, "scope", "single"),
+                compared=prepared.compared,
+                filters=applied,
+            )
+    except Exception:
+        pass
 
 
 def _chat_response(prepared: _PreparedAnswer) -> ChatResponse:
