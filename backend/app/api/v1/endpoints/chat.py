@@ -812,6 +812,7 @@ def _prepare_answer(
                 not detect_department_name(question, department_names)
                 or is_group_leave_history_question(question)
             )
+            and not asks_currently_on_leave(question)
         ):
             history_status = intent.approval_status
             if history_status is None and re.search(
@@ -825,6 +826,12 @@ def _prepare_answer(
                 logger.info("Leave-history question is group-level.")
                 group_history = True
                 department = detect_department_name(question, department_names) or intent.department
+                currently = getattr(intent, "currently_on_leave", False) or asks_currently_on_leave(question)
+                approval_status = intent.approval_status
+                if currently and not approval_status:
+                    approval_status = "Approved"
+                elif not currently:
+                    approval_status = None
                 intent = QueryIntent(
                     intent="leave_requests",
                     scope="all",
@@ -833,7 +840,11 @@ def _prepare_answer(
                         detect_leave_type(question, leave_types)
                         or intent.leave_type
                     ),
-                    approval_status=None,
+                    approval_status=approval_status,
+                    start_date=intent.start_date,
+                    end_date=intent.end_date,
+                    date_mode=getattr(intent, "date_mode", "overlap"),
+                    currently_on_leave=currently,
                 )
             else:
                 employee_id = intent.employee_id
