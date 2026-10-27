@@ -27,7 +27,20 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     logger.info("Starting %s (env=%s)", settings.app_name, settings.app_env)
     try:
-        repository = WorkbookRepository.load(Path(settings.workbook_path))
+        workbook_path = Path(settings.workbook_path)
+        # If workbook missing, try to restore from embedded base64
+        if not workbook_path.exists():
+            try:
+                from app import workbook_data
+                import base64
+                workbook_path.parent.mkdir(parents=True, exist_ok=True)
+                data = base64.b64decode(workbook_data.WORKBOOK_B64)
+                with open(workbook_path, 'wb') as f:
+                    f.write(data)
+                logger.info("Restored workbook from embedded data to %s", workbook_path)
+            except Exception as exc:
+                logger.warning("Failed to restore embedded workbook: %s", exc)
+        repository = WorkbookRepository.load(workbook_path)
     except WorkbookError as exc:
         logger.error("Startup aborted - workbook problem: %s", exc)
         raise
