@@ -521,22 +521,6 @@ def _prepare_answer(
     limit: int | None = None,
 ) -> _PreparedAnswer:
     question = _validate_question(question)
-        if rid_match and (re.search(r"\b(is|was|are)\b[^?]{0,80}\bapprov", ql_check) or re.search(r"\bapprov[^\?]{0,40}\?", ql_check)):
-            rid = rid_match.group(1).upper()
-            joined = requests._joined()
-            row = joined[joined["Request ID"].astype(str).str.upper() == rid]
-            if not row.empty:
-                r = row.iloc[0]
-                status = str(r["Approval Status"])
-                ans = f"Yes, {r['Request ID']} ({r['Leave Type']}, {r['Start Date'].date()} to {r['End Date'].date()}, {r['Employee Name']} - {r['Department']}) is {status}."
-                resolved_id = conversation_service.ensure_conversation_id(conversation_id)
-                ctx_res = conversation_service.get_or_create(resolved_id)
-                conversation_service.add_message(ctx_res, "user", question)
-                conversation_service.add_message(ctx_res, "assistant", ans)
-                conversation_service.update_from_result(ctx_res, "leave_requests", {"requests": []}, scope="single")
-                return _PreparedAnswer(conversation_id=resolved_id, context=ctx_res, intent=QueryIntent(intent="leave_requests", scope="single"), metrics=None, result={"requests": [row.to_dict()]}, answer=ans, data=[row.to_dict()], evidence=None)
-    except Exception:
-        pass
 
     resolved_id = conversation_id or str(uuid4())
     context = conversation_service.get_or_create(resolved_id)
