@@ -101,10 +101,20 @@ NON_BALANCE_PATTERNS = (
 )
 
 # A follow-up must look like a continuation, not merely contain "and" or
-# "also" somewhere in a standalone question.
+# "also" somewhere in a standalone question. A bare summary/overview of the
+# active document also counts, because it has no structured-data anchor and
+# only makes sense against the document the user just received.
 DOCUMENT_FOLLOWUP_CUE_PATTERNS = (
     r"^\s*(?:and|also|then|so)\b",
     r"\b(?:what|how)\s+(?:about|of)\b",
+    r"\bsummar(?:y|ies|ize|ise|ized|ised|izing|ising)\b",
+    r"\boverview\b",
+    r"\bkey\s+points\b",
+    r"\bhighlights?\b",
+    r"\boutline\b",
+    r"\bcheck\s+(?:out|over|review)\b",
+    r"\blook\s+(?:at|over|review)\b",
+    r"\breview\b",
 )
 
 # Content that belongs to policy documents rather than the structured policy
@@ -389,6 +399,23 @@ def detect_balance_scope(
     return None
 
 
+# Cues that alone identify a document follow-up because they have no meaning
+# outside a document context. They need no additional topic pattern.
+DOCUMENT_FOLLOWUP_SOLO_CUES = (
+    r"\bsummar(?:y|ies|ize|ise|ized|ised|izing|ising)\b",
+    r"\boverview\b",
+    r"\bkey\s+points\b",
+    r"\bhighlights?\b",
+    r"\boutline\b",
+    r"\bcheck\s+(?:out|over|review)\b",
+    r"\blook\s+(?:at|over|review)\b",
+    r"\breview\b",
+    r"\bthe\s+(?:most\s+)?recent\s+(?:uploaded\s+)?document\b",
+    r"\bthis\s+(?:uploaded\s+)?document\b",
+    r"\bthe\s+(?:uploaded\s+)?document\b",
+)
+
+
 def is_document_follow_up(
     question: str,
     leave_types: Iterable[str] = (),
@@ -411,6 +438,11 @@ def is_document_follow_up(
 
     if detect_department_name(text, department_names):
         return False
+
+    # A bare summary/overview/review of the active document has no other
+    # interpretation, so it counts as a follow-up on its own.
+    if _matches_any(text, DOCUMENT_FOLLOWUP_SOLO_CUES):
+        return True
 
     if not _matches_any(text, DOCUMENT_FOLLOWUP_CUE_PATTERNS):
         return False
