@@ -282,57 +282,6 @@ def main():
         "Missing_Policy.pdf" in missing_result["answer"],
     )
 
-    print("=== Multi-document summary covers every upload ===")
-    multi_registry = DocumentRegistry()
-    multi_registry.add(
-        make_document(
-            "m1",
-            "Alpha.pdf",
-            [
-                (1, "Casual Leave: 15 days per calendar year."),
-                (2, "Sick Leave: 10 days per calendar year."),
-            ],
-        )
-    )
-    multi_registry.add(
-        make_document(
-            "m2",
-            "Beta.pdf",
-            [
-                (1, "Earned Leave: 30 days per calendar year."),
-                (2, "Probation period is six months."),
-            ],
-        )
-    )
-    multi = answer_document_question(
-        "Summarize both uploaded documents.",
-        multi_registry,
-        settings,
-    )
-    check("multi-document summary matched", multi["matched"] is True)
-    check(
-        "multi-document summary cites both documents",
-        {src["document_name"] for src in multi["sources"]}
-        == {"Alpha.pdf", "Beta.pdf"},
-    )
-    check(
-        "multi-document summary includes content from both",
-        any("15 days" in src["text"] for src in multi["sources"])
-        and any("30 days" in src["text"] for src in multi["sources"]),
-    )
-
-    # A plain "summarize the document" still defaults to the most recent.
-    single = answer_document_question(
-        "Summarize the document.",
-        multi_registry,
-        settings,
-    )
-    check("plain summary defaults to latest", single["matched"] is True)
-    check(
-        "plain summary cites only the latest document",
-        {src["document_name"] for src in single["sources"]} == {"Beta.pdf"},
-    )
-
     print(f"\nPASS={PASS} FAIL={FAIL}")
     return 0 if FAIL == 0 else 1
 

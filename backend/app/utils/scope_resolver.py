@@ -522,34 +522,7 @@ _VALID_LEAVE_PREFIX_IGNORES = {
 }
 
 
-# Wording that asks for a summary of every uploaded document at once.
-# A plain "summarize the document" still defaults to the most recent upload,
-# so these patterns require an explicit all/both/every/each quantifier.
-MULTI_DOCUMENT_SUMMARY_PATTERNS = (
-    r"\bsummar(?:y|ies|ize|ise|ized|ised|izing|ising)\s+"
-    r"(?:all|both|every|each|the\s+two)\s+"
-    r"(?:the\s+)?(?:uploaded\s+)?(?:documents?|pdfs?|files?|attachments?)\b",
-    r"\b(?:all|both|every|each)\s+"
-    r"(?:the\s+)?(?:uploaded\s+)?(?:documents?|pdfs?|files?|attachments?)\b"
-    r"(?:\s+(?:summar(?:y|ies|ize|ise|ized|ised|izing|ising)|overview|"
-    r"key\s+points|highlights?|outline))?\b",
-    r"\bsummarize\s+(?:both|all)\s+(?:the\s+)?(?:uploaded\s+)?"
-    r"(?:documents?|pdfs?|files?|attachments?)\b",
-)
-
-
-def is_multi_document_summary_request(question: str) -> bool:
-    """Return True when a summary explicitly targets all uploaded documents.
-
-    A plain "summarize the document" still defaults to the most recent upload,
-    so this only triggers when the question names both/all documents or asks
-    for an overview of every uploaded file.
-    """
-    text = (question or "").strip()
-    if not text:
-        return False
-
-    return _matches_any(text, MULTI_DOCUMENT_SUMMARY_PATTERNS)
+def _leave_type_stems(leave_types: Iterable[str]) -> set[str]:
     stems = set()
     for leave_type in leave_types:
         name = str(leave_type).strip().lower()
