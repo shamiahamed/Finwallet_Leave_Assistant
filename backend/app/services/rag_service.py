@@ -33,6 +33,18 @@ from app.utils.document_names import (
     rank_name_matches,
 )
 from app.utils.scope_resolver import is_document_comparison_request
+from app.services.rag_extractive import (
+    _extractive_answer,
+    _extractive_comparison_answer,
+    _is_summary_request,
+)
+from app.services.rag_comparison import (
+    _COMPARISON_INSUFFICIENT_NOTICE,
+    _COMPARISON_SAME_NOTICE,
+    _COMPARISON_TARGET_NOTICE,
+    _comparison_retrieval_query,
+    _has_comparison_topic,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,61 +55,6 @@ _MAX_QUESTION_CHARS = 500
 _INSUFFICIENT_NOTICE = (
     "The available documents do not contain information that answers this "
     "question. Upload a relevant policy document, or rephrase the question."
-)
-
-_COMPARISON_TARGET_NOTICE = (
-    "I need the names of two uploaded documents to compare. Name both "
-    "documents, or retrieve both first and then ask again."
-)
-
-_COMPARISON_SAME_NOTICE = (
-    "Both names refer to the same uploaded document, so there is nothing to "
-    "compare. Name two different documents."
-)
-
-_COMPARISON_INSUFFICIENT_NOTICE = (
-    "Both documents were found, but their retrieved passages do not support "
-    "the requested comparison."
-)
-
-# Terms that identify the comparison itself rather than the content being
-# compared. Used only to decide whether a follow-up has a substantive topic.
-_COMPARISON_FILLER_TERMS = frozenset(
-    {
-        "between",
-        "both",
-        "compare",
-        "comparing",
-        "comparison",
-        "content",
-        "contents",
-        "contrast",
-        "detail",
-        "details",
-        "differ",
-        "difference",
-        "differences",
-        "doc",
-        "docs",
-        "document",
-        "documents",
-        "file",
-        "files",
-        "leave",
-        "leaves",
-        "overview",
-        "pdf",
-        "pdfs",
-        "policies",
-        "policy",
-        "similarities",
-        "similarity",
-        "them",
-        "two",
-        "uploaded",
-        "versus",
-        "vs",
-    }
 )
 
 _GROUNDING_PROMPT = """
@@ -127,184 +84,6 @@ Rules:
   not cover the whole document.
 - Keep ordinary factual answers concise.
 """
-
-
-def _is_summary_request(question: str) -> bool:
-    """Identify requests asking for a document summary or overview."""
-    return bool(
-        re.search(
-            r"\b("
-            r"summar(?:y|ies|ize|ise|ized|ised|izing|ising)"
-            r"|overview"
-            r"|key\s+points"
-            r"|main\s+points"
-            r"|highlights?"
-            r"|outline"
-            r"|summariz(?:e|ation)"
-            r")\b",
-            question.lower(),
-        )
-    )
-
-
-def _build_context_block(chunks) -> str:
-    """Build a delimited context block with source locations."""
-    lines = ["<passages>"]
-
-    for index, (chunk, _score) in enumerate(chunks, start=1):
-        location = f"page {chunk.page}" if chunk.page else "text"
-        lines.append(
-            f"[{index}] ({chunk.document_name}, {location}) {chunk.text}"
-        )
-
-    lines.append("</passages>")
-    return "\n".join(lines)
-
-
-def _focused_extract(question: str, chunk) -> str | None:
-    """Return the most relevant sentence(s) from a chunk for a factual question.
-
-    Uses token overlap between the question and each sentence in the chunk.
-    Returns None when no sentence has sufficient overlap, so the caller can
-    fall back to presenting the full chunk text.
-    """
-    text = chunk.text.strip()
-    if not text:
-        return None
-
-    # Split into sentences on common end-punctuation boundaries.
-    sentences = re.split(r"(?<=[.!?])\s+", text)
-    sentences = [s.strip() for s in sentences if s.strip()]
-
-    if not sentences:
-        return None
-
-    question_tokens = set(tokenize(question))
-    if not question_tokens:
-        return None
-
-    best_score = 0.0
-    best_sentences: list[str] = []
-
-    for sentence in sentences:
-        sentence_tokens = set(tokenize(sentence))
-        if not sentence_tokens:
-            continue
-        overlap = len(question_tokens & sentence_tokens) / len(question_tokens)
-        if overlap > best_score:
-            best_score = overlap
-            best_sentences = [sentence]
-        elif overlap == best_score and best_score > 0:
-            best_sentences.append(sentence)
-
-    # Require at least 25 % of question tokens to appear in the sentence.
-    # Below that threshold the sentence is unlikely to directly answer the
-    # question, so the full passage is safer.
-    if best_score < 0.25 or not best_sentences:
-        return None
-
-    # Return up to two consecutive best sentences to preserve context.
-    return " ".join(best_sentences[:2])
-
-
-def _extractive_answer(question: str, chunks) -> str:
-    """Provide a deterministic fallback using retrieved passages.
-
-    For summary requests: format all selected passages as a labelled list.
-    For factual questions: attempt a focused sentence-level extraction from
-    the top-scoring chunk before falling back to the full passage text.
-    In every case the answer is clearly labelled as an extract so the user
-    knows that AI-generated summarization was unavailable.
-    """
-    if not chunks:
-        return _INSUFFICIENT_NOTICE
-
-    if _is_summary_request(question):
-        snippets = []
-
-        for chunk, _score in chunks:
-            location = f"page {chunk.page}" if chunk.page else "the document"
-            snippet = chunk.text.strip()
-
-            if snippet:
-                snippets.append(
-                    f"- {chunk.document_name} ({location}): {snippet}"
-                )
-
-        if not snippets:
-            return _INSUFFICIENT_NOTICE
-
-        return (
-            "Relevant passages from the uploaded documents "
-            "(AI summarization unavailable \u2014 extractive summary):\n"
-            + "\n".join(snippets)
-        )
-
-    top = chunks[0][0]
-    location = f"page {top.page}" if top.page else "the document"
-    label = f"{top.document_name} ({location})"
-
-    # Try a sentence-level focused extraction first.  For simple factual
-    # questions (e.g. "What about Sick Leave?") this surfaces just the
-    # relevant line rather than a long multi-leave-type passage.
-    focused = _focused_extract(question, top)
-    if focused:
-        return (
-            f"Based on {label} "
-            f"(AI summarization unavailable \u2014 matched extract):\n"
-            f"{focused}"
-        )
-
-    # Full passage fallback: present the whole chunk clearly labelled.
-    return (
-        f"Based on {label} "
-        f"(AI summarization unavailable \u2014 relevant extract):\n"
-        f"{top.text.strip()}"
-    )
-
-
-def _extractive_comparison_answer(chunks) -> str:
-    """Provide labelled passages from each document when the LLM is down.
-
-    All retrieved chunks are grouped by document so the user sees everything
-    that was retrieved rather than a single arbitrary chunk per document.
-    A coverage caveat is always appended because the extractive fallback only
-    reflects the retrieved passages, not the full document content.
-    """
-    # Group all retrieved chunks by document, preserving ranking order.
-    by_document: dict[str, list] = {}
-    name_for: dict[str, str] = {}
-
-    for chunk, _score in chunks:
-        doc_id = getattr(chunk, "document_id", None)
-        if not doc_id:
-            continue
-        text = chunk.text.strip()
-        if not text:
-            continue
-        if doc_id not in by_document:
-            by_document[doc_id] = []
-            name_for[doc_id] = getattr(chunk, "document_name", "document")
-        by_document[doc_id].append(chunk)
-
-    if len(by_document) < 2:
-        return _INSUFFICIENT_NOTICE
-
-    sections: list[str] = []
-    for doc_id, doc_chunks in by_document.items():
-        doc_name = name_for[doc_id]
-        passage_lines: list[str] = []
-        for chunk in doc_chunks:
-            location = f"page {chunk.page}" if chunk.page else "the document"
-            passage_lines.append(f"  [{location}] {chunk.text.strip()}")
-        sections.append(f"{doc_name}:\n" + "\n".join(passage_lines))
-
-    return (
-        "Comparison extracts (AI summarization unavailable \u2014 "
-        "showing retrieved passages only; the comparison may not cover "
-        "all differences between the documents):\n\n"
-        + "\n\n".join(sections)
-    )
 
 
 def _llm_answer(question: str, chunks) -> str | None:
@@ -478,32 +257,6 @@ def _is_insufficient_answer(answer: str | None) -> bool:
         return True
 
     return _INSUFFICIENT_NOTICE.split(".")[0].lower() in answer.lower()
-
-
-def _comparison_retrieval_query(question: str, names: list[str]) -> str:
-    """Remove file names and comparison wording from a retrieval query."""
-    text = question
-
-    for name in names:
-        text = re.sub(re.escape(name), " ", text, flags=re.IGNORECASE)
-
-    text = re.sub(
-        r"\b(?:compar(?:e|es|ed|ing|ison|isons)|differences?|versus|vs\.?"
-        r"|contrast|differ)\b",
-        " ",
-        text,
-        flags=re.IGNORECASE,
-    )
-
-    return " ".join(text.split())
-
-
-def _has_comparison_topic(query: str) -> bool:
-    """True when a comparison query still asks about specific content."""
-    return any(
-        token not in _COMPARISON_FILLER_TERMS
-        for token in tokenize(query)
-    )
 
 
 def _answer_comparison(
