@@ -203,7 +203,7 @@ def dispatch_query(
             and settings is not None
             and not documents.is_empty()
         ):
-            from app.services.rag_service import answer_document_questi
+            from app.services.rag_service import answer_document_question
             return answer_document_question(
                 question,
                 documents,
