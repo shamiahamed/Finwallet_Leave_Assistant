@@ -32,7 +32,10 @@ from app.utils.document_names import (
     extract_document_mentions,
     rank_name_matches,
 )
-from app.utils.scope_resolver import is_document_comparison_request
+from app.utils.scope_resolver import (
+    is_document_comparison_request,
+    is_multi_document_summary_request,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -370,13 +373,55 @@ def _llm_answer(question: str, chunks) -> str | None:
 
 
 def _select_summary_chunks(chunks, max_chunks: int):
-    """Select chunks spread across one resolved document for a summary.
+    """Select chunks spread across the resolved chunk list for a summary.
 
-    The caller resolves the target document first, so every chunk here belongs
-    to that document and is already in page order. When the document has more
-    chunks than the context budget, evenly spaced chunks are chosen so the
-    summary covers the whole document instead of only its first pages.
+    When the caller passes chunks from a single document, every chunk belongs
+    to that document and is already in page order. When the caller passes
+    chunks from several documents (a multi-document summary), chunks are
+    grouped by document_id and the budget is split evenly across documents so
+    every uploaded file is represented instead of only the first one.
+
+    When a document has more chunks than its share, evenly spaced chunks are
+    chosen so the summary covers the whole document instead of only its first
+    pages.
     """
+    if max_chunks <= 0 or not chunks:
+        return []
+
+    if len(chunks) <= max_chunks:
+        return [(chunk, 1.0) for chunk in chunks]
+
+    # Group chunks by document_id to support multi-document summaries.
+    by_document: dict[str, list] = {}
+    order: list[str] = []
+
+    for chunk in chunks:
+        doc_id = str(getattr(chunk, "document_id", "") or "")
+        if doc_id not in by_document:
+            by_document[doc_id] = []
+            order.append(doc_id)
+        by_document[doc_id].append(chunk)
+
+    if len(by_document) == 1:
+        only = next(iter(by_document.values()))
+        return _evenly_spaced(only, max_chunks)
+
+    # Split the budget evenly across documents; give the remainder to the
+    # documents with the most chunks so no document is left out.
+    base, extra = divmod(max_chunks, len(by_document))
+    selected: list = []
+
+    for doc_id in order:
+        doc_chunks = by_document[doc_id]
+        share = base + (1 if extra > 0 else 0)
+        extra = max(0, extra - 1)
+        selected.extend(_evenly_spaced(doc_chunks, share))
+
+    return selected[:max_chunks]
+
+
+def _evenly_spaced(chunks, max_chunks: int):
+    """Return up to ``max_chunks`` items spread evenly across ``chunks``."""
     if max_chunks <= 0 or not chunks:
         return []
 
@@ -803,8 +848,18 @@ def answer_document_question(
         logger.info("RAG question name did not resolve: %s", mentioned_name)
 
     target = payload if status == "ok" else None
+    chunks: list = []
 
-    if target is None and is_summary:
+    # A summary that names every uploaded document must cover all of them,
+    # not just the most recent upload. This takes priority over the default
+    # single-document summary scope below.
+    if is_multi_document_summary_request(question):
+        chunks = registry.all_chunks()
+        logger.info(
+            "RAG multi-document summary retrieval: total_chunks=%d",
+            len(chunks),
+        )
+    elif target is None and is_summary:
         # A summary that names no document refers to the most recent upload.
         # Resolve it from upload metadata before selecting any summary chunks.
         target = registry.latest()
@@ -815,15 +870,16 @@ def answer_document_question(
                 getattr(target, "name", "document"),
             )
 
-    if target is not None:
-        chunks = _chunks_for(target)
-        logger.info(
-            "RAG retrieval scoped to document: name=%s chunks=%d",
-            getattr(target, "name", "document"),
-            len(chunks),
-        )
-    else:
-        chunks = registry.all_chunks()
+    if not chunks:
+        if target is not None:
+            chunks = _chunks_for(target)
+            logger.info(
+                "RAG retrieval scoped to document: name=%s chunks=%d",
+                getattr(target, "name", "document"),
+                len(chunks),
+            )
+        else:
+            chunks = registry.all_chunks()
 
     if not chunks:
         return {
