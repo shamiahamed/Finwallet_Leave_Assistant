@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createId, loadChats, saveChats } from "../services/chatStorage";
+import { createConversation, createId, loadChats, saveChats } from "../services/chatStorage";
 import { streamQuestion } from "../services/chatService";
 
 function titleFromQuestion(question) {
