@@ -329,23 +329,28 @@ def _deterministic_intent(
             date_mode = "start_date"
         elif _END_DATE_RE.search(question):
             date_mode = "end_date"
+        currently = asks_currently_on_leave(question)
         # "Currently on leave" has no date range in the question, so default to
         # today's date to filter only leave that overlaps the current date.
-        if asks_currently_on_leave(question) and not rng:
+        if currently and not rng:
             from datetime import date
+
             today = date.today()
             rng = (today, today)
+        department = detect_department_name(question, department_names)
         return QueryIntent(
             intent="leave_requests",
             scope="all",
+            department=department,
             leave_type=detect_leave_type(
                 question,
                 _leave_type_names(employees),
             ),
+            approval_status="Approved" if currently else None,
             start_date=rng[0] if rng else None,
             end_date=rng[1] if rng else None,
             date_mode=date_mode,
-            currently_on_leave=asks_currently_on_leave(question),
+            currently_on_leave=currently,
         )
 
     detected_scope = detect_balance_scope(
@@ -418,7 +423,7 @@ def _apply_deterministic_routing(
             }
         )
 
-    if is_group_leave_history_question(question):
+    if is_group_leave_history_question(question) or asks_currently_on_leave(question):
         try:
             rng = detect_leave_date_range(question)
         except InvalidFilterError as exc:
@@ -428,21 +433,30 @@ def _apply_deterministic_routing(
             date_mode = "start_date"
         elif _END_DATE_RE.search(question):
             date_mode = "end_date"
+        currently = asks_currently_on_leave(question)
+        if currently and not rng:
+            from datetime import date
+
+            today = date.today()
+            rng = (today, today)
+        department = detect_department_name(question, department_names)
         return intent.model_copy(
             update={
                 "intent": "leave_requests",
                 "scope": "all",
                 "employee_id": None,
                 "employee_name": None,
+                "department": department or intent.department,
                 "leave_type": detect_leave_type(
                     question,
                     _leave_type_names(employees),
                 )
                 or intent.leave_type,
-                "approval_status": None,
+                "approval_status": "Approved" if currently else None,
                 "start_date": rng[0] if rng else intent.start_date,
                 "end_date": rng[1] if rng else intent.end_date,
                 "date_mode": date_mode,
+                "currently_on_leave": currently or intent.currently_on_leave,
             }
         )
 
@@ -730,6 +744,7 @@ def _prepare_answer(
             intent.intent != "document_question"
             and (
                 is_leave_history_question(question)
+                or is_group_leave_history_question(question)
                 or (
                     context.last_employee_id
                     and context.last_intent in {"leave_balance", "leave_requests", "employee_lookup"}
@@ -746,7 +761,10 @@ def _prepare_answer(
                 "clarify",
                 "unsupported",
             }
-            and not detect_department_name(question, department_names)
+            and (
+                not detect_department_name(question, department_names)
+                or is_group_leave_history_question(question)
+            )
         ):
             history_status = intent.approval_status
             if history_status is None and re.search(
@@ -759,9 +777,11 @@ def _prepare_answer(
             if is_group_leave_history_question(question):
                 logger.info("Leave-history question is group-level.")
                 group_history = True
+                department = detect_department_name(question, department_names) or intent.department
                 intent = QueryIntent(
                     intent="leave_requests",
                     scope="all",
+                    department=department,
                     leave_type=(
                         detect_leave_type(question, leave_types)
                         or intent.leave_type
@@ -1206,9 +1226,12 @@ def _prepare_answer(
                 elif unavailable_policy_detail:
                     result = {"message": _POLICY_DETAIL_UNAVAILABLE}
                 elif group_history:
+                    approval_status = intent.approval_status
+                    if getattr(intent, "currently_on_leave", False) and not approval_status:
+                        approval_status = "Approved"
                     result = requests.list_requesting_employees(
                         leave_type=intent.leave_type,
-                        approval_status=intent.approval_status,
+                        approval_status=approval_status,
                         start_date=intent.start_date,
                         end_date=intent.end_date,
                         department=intent.department,
