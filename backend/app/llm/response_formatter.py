@@ -8,7 +8,7 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 # Maximum leave requests shown inline in the answer text 
-_INLINE_REQUEST_LIMIT = 50
+_INLINE_REQUEST_LIMIT = 10
 
 
 def format_response(
