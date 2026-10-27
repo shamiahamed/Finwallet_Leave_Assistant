@@ -515,6 +515,8 @@ _GROUP_LEAVE_HISTORY_PATTERNS = (
     r"\bwho\b[^?]{0,50}\b(?:taken|used|took)\b[^?]{0,20}\bleave\b",
     r"\b(?:employees|staff|people)\b[^?]{0,40}\b(?:have|has|had)\b"
     r"[^?]{0,30}\b(?:taken|used)\b[^?]{0,20}\bleave\b",
+    r"\bwho\b[^?]{0,40}\b(?:is|are|currently)\b[^?]{0,20}\b(?:on|taking)\b[^?]{0,20}\bleave\b",
+    r"\bwhich\b[^?]{0,40}\b(?:employees|staff|people)\b[^?]{0,30}\b(?:on|taking)\b[^?]{0,20}\bleave\b",
 )
 _UNKNOWN_EMPLOYEE_PATTERNS = (
     r"\b(?:for|about|of|by|named)\s+(?:an?\s+)?"
@@ -615,6 +617,22 @@ def is_leave_history_question(question: str) -> bool:
 def is_group_leave_history_question(question: str) -> bool:
     """Detect leave-history questions about a group, not one employee."""
     return _matches_any(question or "", _GROUP_LEAVE_HISTORY_PATTERNS)
+
+
+def asks_currently_on_leave(question: str) -> bool:
+    """Detect questions asking who is on leave right now (current/active leave)."""
+    return bool(
+        re.search(
+            r"\b(?:currently|right\s+now|active(?:ly)?)\s+(?:on|taking)\s+leave\b",
+            question or "",
+            re.IGNORECASE,
+        )
+        or re.search(
+            r"\bwho\b[^?]{0,40}\b(?:is|are)\b[^?]{0,20}\b(?:on|taking)\b[^?]{0,20}\bleave\b",
+            question or "",
+            re.IGNORECASE,
+        )
+    )
 
 
 def detect_unsupported_leave_type(

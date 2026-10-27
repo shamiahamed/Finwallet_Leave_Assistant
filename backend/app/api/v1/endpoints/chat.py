@@ -43,6 +43,7 @@ from app.services.policy_service import PolicyService
 from app.utils.dates import asks_submission_date, detect_leave_date_range
 from app.utils.document_names import extract_document_mentions
 from app.utils.scope_resolver import (
+    asks_currently_on_leave,
     asks_unstructured_policy_detail,
     detect_balance_scope,
     detect_balance_threshold,
@@ -318,7 +319,7 @@ def _deterministic_intent(
             employment_status=_detect_employment_status(question),
         )
 
-    if is_group_leave_history_question(question):
+    if is_group_leave_history_question(question) or asks_currently_on_leave(question):
         try:
             rng = detect_leave_date_range(question)
         except InvalidFilterError as exc:
@@ -328,6 +329,12 @@ def _deterministic_intent(
             date_mode = "start_date"
         elif _END_DATE_RE.search(question):
             date_mode = "end_date"
+        # "Currently on leave" has no date range in the question, so default to
+        # today's date to filter only leave that overlaps the current date.
+        if asks_currently_on_leave(question) and not rng:
+            from datetime import date
+            today = date.today()
+            rng = (today, today)
         return QueryIntent(
             intent="leave_requests",
             scope="all",
@@ -338,6 +345,7 @@ def _deterministic_intent(
             start_date=rng[0] if rng else None,
             end_date=rng[1] if rng else None,
             date_mode=date_mode,
+            currently_on_leave=asks_currently_on_leave(question),
         )
 
     detected_scope = detect_balance_scope(

@@ -36,6 +36,7 @@ class QueryIntent(BaseModel):
     employment_status: str | None = None
     document_name: str | None = None
     date_mode: Literal["overlap", "start_date", "end_date"] = "overlap"
+    currently_on_leave: bool = False
 
     @field_validator(
         "employee_id",
