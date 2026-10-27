@@ -52,11 +52,14 @@ class DepartmentService:
         rows.sort(key=lambda r: (-r.approved_days, r.department))
         top_days = rows[0].approved_days if rows else 0
         top = [r.department for r in rows if r.approved_days == top_days] if top_days > 0 else []
+        bottom_days = rows[-1].approved_days if rows else 0
+        bottom = [r.department for r in rows if r.approved_days == bottom_days] if rows else []
         approved_ids = reqs[reqs["Approval Status"] == APPROVED_STATUS]["Request ID"].tolist()
 
         return DepartmentSummaryResponse(
             departments=rows,
             top_departments_by_approved_days=top,
+            bottom_departments_by_approved_days=bottom,
             filters_applied=applied,
             evidence=Evidence(worksheets=[SHEET_EMPLOYEES, SHEET_REQUESTS], request_ids=approved_ids),
         )

@@ -453,12 +453,13 @@ def _format_department_summary(data: dict) -> tuple[str, dict | list | None, dic
     data, evidence = _extract_evidence(data)
     departments: list[dict] = data.get("departments", [])
     top: list[str] = data.get("top_departments_by_approved_days", [])
+    bottom: list[str] = data.get("bottom_departments_by_approved_days", [])
 
     if not departments:
         answer = "No department data was found for the given filters."
         return answer, data, evidence
 
-    lines = [f"Department leave summary ({len(departments)} department(s)):"]
+    lines = [f"Department leave summary ({len(departments)} department(s)):"] 
     for dept in departments:
         name = dept.get("department", "?")
         total_emp = dept.get("total_employees", 0)
@@ -473,6 +474,9 @@ def _format_department_summary(data: dict) -> tuple[str, dict | list | None, dic
     if top:
         top_str = ", ".join(top)
         lines.append(f"\nHighest approved leave: {top_str}.")
+    if bottom:
+        bottom_str = ", ".join(bottom)
+        lines.append(f"Lowest approved leave: {bottom_str}.")
 
     answer = "\n".join(lines)
     return answer, data, evidence

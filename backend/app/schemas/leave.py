@@ -90,6 +90,7 @@ class DepartmentSummaryOut(BaseModel):
 class DepartmentSummaryResponse(BaseModel):
     departments: list[DepartmentSummaryOut] = Field(description="Sorted by approved_days, descending.")
     top_departments_by_approved_days: list[str] = Field(description="All departments tied for the max.")
+    bottom_departments_by_approved_days: list[str] = Field(default_factory=list, description="All departments tied for the min.")
     filters_applied: dict[str, str]
     evidence: Evidence
 
