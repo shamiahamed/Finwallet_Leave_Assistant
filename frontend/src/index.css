@@ -991,6 +991,14 @@ body {
   text-align: center;
 }
 
+/* Safe area support for notched devices */
+:root {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .sidebar {
@@ -1000,12 +1008,12 @@ body {
     height: 100vh;
     z-index: 40;
     box-shadow: 0 10px 30px rgba(36, 34, 32, 0.18);
+    width: 240px;
   }
 
   .sidebar.collapsed {
-    width: 272px;
     transform: translateX(-100%);
-    border-right: 1px solid var(--border-light);
+    border-right: none;
   }
 
   .sidebar-backdrop {
@@ -1014,14 +1022,34 @@ body {
     inset: 0;
     z-index: 30;
     background: rgba(36, 34, 32, 0.28);
+    backdrop-filter: blur(2px);
+  }
+
+  /* Larger touch targets for sidebar buttons */
+  .sidebar-new-btn {
+    padding: 11px 12px;
+    font-size: 0.88rem;
+    min-height: 44px;
+  }
+
+  .conversation-select {
+    padding: 12px 10px;
+    min-height: 44px;
+  }
+
+  .conversation-delete {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
   }
 }
 
 @media (max-width: 640px) {
   .app-header {
-    padding: 0 16px;
+    padding: 10px 14px 10px var(--safe-area-left);
+    gap: 8px;
   }
-  
+
   .brand-subtitle {
     display: none;
   }
@@ -1043,7 +1071,74 @@ body {
   }
 
   .footer-area {
-    padding: 8px 14px 12px;
+    padding: 8px 14px 12px var(--safe-area-left);
+  }
+
+  /* Collapse header actions on small screens */
+  .header-actions .status-badge,
+  .header-actions .new-chat-btn {
+    display: none;
+  }
+
+  .header-actions .icon-btn,
+  .header-actions .dataset-toggle,
+  .header-actions .security-toggle {
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Larger touch targets for chat interactions */
+  .action-btn {
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 0.82rem;
+  }
+
+  .suggestion-chip {
+    padding: 9px 14px;
+    font-size: 0.82rem;
+    min-height: 40px;
+  }
+
+  .attach-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .send-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .scroll-bottom-btn {
+    bottom: calc(112px + var(--safe-area-bottom));
+    width: 44px;
+    height: 44px;
+  }
+
+  /* Dataset & security dropdowns fit on small screens */
+  .dataset-dropdown {
+    width: calc(100vw - 28px);
+    right: 14px;
+  }
+
+  .security-dropdown {
+    width: calc(100vw - 28px);
+    right: 14px;
+  }
+
+  /* Ensure app layout doesn't overflow on small devices */
+  .app-container {
+    padding-bottom: var(--safe-area-bottom);
+  }
+
+  .app-layout {
+    padding-top: var(--safe-area-top);
+  }
+
+  /* Wider chat window for better readability on small screens */
+  .chat-window {
+    width: 100%;
   }
 }
 
