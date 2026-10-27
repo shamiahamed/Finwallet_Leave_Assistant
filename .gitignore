@@ -33,3 +33,10 @@ Thumbs.db
 
 # Local accidental file
 $null
+# Local debug/test files
+casual_out.txt
+check.py
+backend/test_currently.py
+*_out.txt
+ir.txt
+_gen.py
