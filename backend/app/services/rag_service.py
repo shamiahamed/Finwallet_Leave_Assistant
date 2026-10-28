@@ -34,6 +34,7 @@ from app.utils.document_names import (
 )
 from app.utils.scope_resolver import is_document_comparison_request
 from app.services.rag_extractive import (
+    _build_context_block,
     _extractive_answer,
     _extractive_comparison_answer,
     _is_summary_request,

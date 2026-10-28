@@ -5,6 +5,10 @@ and evidence reporting without calling the LLM.
 """
 
 import sys
+from pathlib import Path
+
+BACKEND = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BACKEND))
 
 from app.core.config import get_settings
 from app.services.document_registry import DocumentRegistry

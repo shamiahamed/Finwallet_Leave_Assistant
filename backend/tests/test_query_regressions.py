@@ -77,6 +77,8 @@ def run_question(
             balances,
             policies,
             departments,
+            documents=None,
+            settings=get_settings(),
         )
         chat._commit_answer(prepared)
         return prepared
@@ -105,6 +107,8 @@ def run_greeting(question: str, services, conversation_id: str, setup=None):
             balances,
             policies,
             departments,
+            documents=None,
+            settings=get_settings(),
         )
         chat._commit_answer(prepared)
         return prepared
