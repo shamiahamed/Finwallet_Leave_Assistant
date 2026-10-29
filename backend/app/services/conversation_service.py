@@ -179,16 +179,23 @@ class ConversationService:
             self._clear_compared_documents(context)
 
         try:
-            if intent == "leave_requests" and isinstance(result, dict):
+            if intent == "leave_requests" and (
+                isinstance(result, dict)
+                or hasattr(result, "model_dump")
+            ):
                 if filters:
                     context.last_request_filters = dict(filters)
                 else:
                     context.last_request_filters = dict(result.get("filters_applied") or {})
-                reqs = result.get("requests") or []
+                reqs = result.get("requests") if isinstance(result, dict) else getattr(result, "requests", None)
+                if reqs is None and hasattr(result, "model_dump"):
+                    reqs = result.model_dump().get("requests")
                 ids = []
-                for r in reqs:
+                for r in reqs or []:
                     if isinstance(r, dict) and r.get("request_id"):
                         ids.append(r["request_id"])
+                    elif hasattr(r, "request_id"):
+                        ids.append(r.request_id)
                 context.last_request_ids = ids
                 context.last_request_offset = len(ids)
         except Exception:

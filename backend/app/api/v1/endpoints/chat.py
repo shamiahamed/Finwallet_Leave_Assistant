@@ -43,6 +43,7 @@ from app.services.policy_service import PolicyService
 from app.utils.dates import asks_submission_date, detect_leave_date_range
 from app.utils.document_names import extract_document_mentions
 from app.utils.scope_resolver import (
+    asks_about_leave_request_id,
     asks_currently_on_leave,
     asks_unstructured_policy_detail,
     detect_balance_scope,
@@ -50,6 +51,7 @@ from app.utils.scope_resolver import (
     detect_department_name,
     detect_document_name,
     detect_known_employee_name,
+    detect_leave_request_id,
     detect_leave_type,
     detect_document_reference,
     detect_unsupported_leave_type,
@@ -272,6 +274,48 @@ def _employee_names(employees: EmployeeService) -> list[str]:
         .astype(str)
         .unique()
         .tolist()
+    )
+
+
+def _format_leave_request_answer(question: str, request) -> str:
+    """Build a human-readable answer for an exact leave-request ID lookup."""
+    lowered = question.lower()
+    status = request.approval_status
+
+    if re.search(r"\bapproved\b", lowered) or "is" in lowered and "status" in lowered:
+        return (
+            f"Leave request {request.request_id} is {status.lower()}. "
+            f"It was submitted by {request.employee_name} "
+            f"({request.employee_id}) in the {request.department} department "
+            f"for {request.leave_type} from {request.start_date} to "
+            f"{request.end_date} ({request.days} day(s))."
+        )
+
+    if "who submitted" in lowered or "who requested" in lowered:
+        return (
+            f"Leave request {request.request_id} was submitted by "
+            f"{request.employee_name} ({request.employee_id}) in the "
+            f"{request.department} department."
+        )
+
+    if "type of leave" in lowered or "leave type" in lowered:
+        return (
+            f"Leave request {request.request_id} is for {request.leave_type}."
+        )
+
+    if "details" in lowered or "show" in lowered or "info" in lowered:
+        return (
+            f"Leave request {request.request_id}: {request.leave_type} from "
+            f"{request.start_date} to {request.end_date} ({request.days} day(s)), "
+            f"status {status.lower()}, submitted by {request.employee_name} "
+            f"({request.employee_id}) in {request.department}."
+        )
+
+    return (
+        f"Leave request {request.request_id} is {status.lower()}. It is for "
+        f"{request.leave_type} from {request.start_date} to {request.end_date} "
+        f"({request.days} day(s)), submitted by {request.employee_name} "
+        f"({request.employee_id}) in the {request.department} department."
     )
 
 
@@ -604,6 +648,40 @@ def _prepare_answer(
 
     standalone_employee_id = normalize_employee_id(question)
 
+    # Deterministic leave-request ID lookup: never call the LLM for an exact
+    # LR ID question. The LLM has no instruction about leave-request IDs and
+    # would otherwise route them to employee lookup or a general list.
+    lr_id = detect_leave_request_id(question)
+    if lr_id and asks_about_leave_request_id(question):
+        request_row = requests.get_leave_request(lr_id)
+        if request_row is None:
+            logger.info(
+                "Leave-request ID %s not found in workbook.", lr_id
+            )
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    f"Leave request {lr_id} was not found in the workbook. "
+                    "Please check the request ID and try again."
+                ),
+            )
+        answer = _format_leave_request_answer(question, request_row)
+        return _PreparedAnswer(
+            conversation_id=resolved_id,
+            context=context,
+            intent=QueryIntent(intent="leave_requests", scope="single"),
+            metrics=None,
+            result={"request": request_row.model_dump(mode="json")},
+            answer=answer,
+            data=request_row.model_dump(mode="json"),
+            evidence={
+                "worksheets": ["Leave Requests", "Employees"],
+                "request_ids": [request_row.request_id],
+                "employee_ids": [request_row.employee_id],
+            },
+            question=question,
+        )
+
     try:
         # Resolve an ID-only reply before calling the LLM.
         pending = conversation_service.resolve_pending_employee_id(
@@ -716,20 +794,6 @@ def _prepare_answer(
                             intent,
                             employees,
                         )
-                    intent = _deterministic_intent(question, employees)
-            metrics = None
-
-            if intent is None:
-                intent, metrics = parse_intent(
-                    question,
-                    context=context,
-                )
-
-                intent = _apply_deterministic_routing(
-                    question,
-                    intent,
-                    employees,
-                )
 
         if intent.intent == "greeting":
             intent = QueryIntent(intent="clarify", scope="single")

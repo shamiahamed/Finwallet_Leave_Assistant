@@ -642,6 +642,32 @@ def asks_currently_on_leave(question: str) -> bool:
     )
 
 
+_LR_ID_RE = re.compile(r"\b(LR\d+)\b", re.IGNORECASE)
+
+
+def detect_leave_request_id(question: str) -> str | None:
+    """Return a leave-request ID (e.g. LR0025) from the question, or None."""
+    match = _LR_ID_RE.search(question or "")
+    if not match:
+        return None
+    return match.group(1).upper()
+
+
+def asks_about_leave_request_id(question: str) -> bool:
+    """True when the question is specifically about a leave-request ID."""
+    text = question or ""
+    if not _LR_ID_RE.search(text):
+        return False
+    lowered = text.lower()
+    return bool(
+        re.search(
+            r"\b(approved|rejected|cancelled|pending|status|details?|"
+            r"submitted|type\s+of\s+leave|who\s+submitted)\b",
+            lowered,
+        )
+    )
+
+
 def detect_unsupported_leave_type(
     question: str,
     leave_types: Iterable[str],

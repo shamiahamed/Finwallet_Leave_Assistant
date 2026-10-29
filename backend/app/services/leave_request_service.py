@@ -186,3 +186,25 @@ class LeaveRequestService:
                 "request_ids": df["Request ID"].tolist(),
             },
         }
+
+    def get_leave_request(self, request_id: str) -> LeaveRequestOut | None:
+        """Return one exact leave request by ID, or None if not found."""
+        df = self._joined()
+        row = df[df["Request ID"] == request_id]
+        if row.empty:
+            return None
+        r = row.iloc[0]
+        return LeaveRequestOut(
+            request_id=r["Request ID"],
+            employee_id=r["Employee ID"],
+            employee_name=r["Employee Name"],
+            department=r["Department"],
+            leave_type=r["Leave Type"],
+            start_date=r["Start Date"].date(),
+            end_date=r["End Date"].date(),
+            days=int(r["Days"]),
+            approval_status=r["Approval Status"],
+            reason=r["Reason"],
+            approver_id=r["Approver ID"],
+            approver_name=r["Approver Name"],
+        )
