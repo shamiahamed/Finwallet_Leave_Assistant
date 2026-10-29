@@ -197,8 +197,7 @@ class ConversationService:
                     elif hasattr(r, "request_id"):
                         ids.append(r.request_id)
                 context.last_request_ids = ids
-                # Cumulative offset: "show more" appends to the previous offset.
-                context.last_request_offset = context.last_request_offset + len(ids)
+                context.last_request_offset += len(ids)
         except Exception:
             pass
 

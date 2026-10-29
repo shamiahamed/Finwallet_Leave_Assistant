@@ -639,6 +639,16 @@ def asks_currently_on_leave(question: str) -> bool:
             question or "",
             re.IGNORECASE,
         )
+        or re.search(
+            r"\bshow\s+(?:employees|staff|people)\s+(?:currently|right\s+now|active(?:ly)?)\b",
+            question or "",
+            re.IGNORECASE,
+        )
+        or re.search(
+            r"\bemployees?\s+(?:currently|right\s+now|active(?:ly)?)\s+(?:on|taking)\s+leave\b",
+            question or "",
+            re.IGNORECASE,
+        )
     )
 
 
@@ -662,7 +672,10 @@ def asks_about_leave_request_id(question: str) -> bool:
     return bool(
         re.search(
             r"\b(approved|rejected|cancelled|pending|status|details?|"
-            r"submitted|type\s+of\s+leave|who\s+submitted)\b",
+            r"submitted|type\s+of\s+leave|who\s+submitted|manager|"
+            r"approved\s+by|rejected\s+by|who\s+is|what\s+is|"
+            r"how\s+many|when\s+was|when\s+did|days?|start|end|"
+            r"leave\s+type|employee|requester)\b",
             lowered,
         )
     )

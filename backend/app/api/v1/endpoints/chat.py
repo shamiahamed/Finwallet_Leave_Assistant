@@ -298,6 +298,12 @@ def _format_leave_request_answer(question: str, request) -> str:
             f"{request.department} department."
         )
 
+    if "manager" in lowered or "approver" in lowered or "approved by" in lowered:
+        return (
+            f"The manager/approver for leave request {request.request_id} is "
+            f"{request.approver_name} ({request.approver_id})."
+        )
+
     if "type of leave" in lowered or "leave type" in lowered:
         return (
             f"Leave request {request.request_id} is for {request.leave_type}."
@@ -775,7 +781,6 @@ def _prepare_answer(
                             end_date=filters.get("end_date"),
                             date_mode=filters.get("date_mode") or "overlap",
                             currently_on_leave=bool(filters.get("currently_on_leave")),
-                            request_offset=context.last_request_offset,
                         )
                         metrics = None
                     elif context.last_intent == "leave_requests":
@@ -1394,12 +1399,20 @@ def _prepare_answer(
                     )
                 else:
                     lowered_q = question.lower()
+                    is_pagination = bool(
+                        re.search(
+                            r"\b(show\s+more|next\s+\d+|more\s+results)\b",
+                            lowered_q,
+                        )
+                    )
                     req_limit = limit
-                    # Cap the page size so "show more" can advance.
-                    if not re.search(r"\b(show\s+more|next\s+\d+|more\s+results)\b", lowered_q):
-                        req_limit = min(req_limit or 50, 10)
-                    else:
+                    if is_pagination:
                         req_limit = 10
+                    else:
+                        # New explicit query: reset offset and cap page size
+                        # so a follow-up like "Show EMP029's leave request"
+                        # does not skip past the previous pagination offset.
+                        req_limit = min(req_limit or 50, 10)
                     result = dispatch_query(
                         intent,
                         employees,
@@ -1412,7 +1425,7 @@ def _prepare_answer(
                         settings=settings,
                         document_names=comparison_names,
                         limit=req_limit,
-                        offset=context.last_request_offset,
+                        offset=context.last_request_offset if is_pagination else 0,
                     )
 
             except AppError:

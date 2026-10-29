@@ -109,7 +109,7 @@ def dispatch_query(
             end_date=intent.end_date,
             department=intent.department,
             limit=limit or 50,
-            offset=offset or getattr(intent, "request_offset", 0),
+            offset=offset,
             date_mode=intent.date_mode,
         )
 

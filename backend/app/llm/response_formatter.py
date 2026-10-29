@@ -154,6 +154,14 @@ def _format_leave_requests(
         answer = "No leave requests were found matching your filters."
         return answer, data, evidence
 
+    # Pagination exhausted: total matches exist but this page is empty.
+    if not requests and total > 0:
+        answer = (
+            "No more leave requests to show. "
+            "You have already seen all matching results."
+        )
+        return answer, data, evidence
+
     # Build a short summary 
     request_word = "request" if total == 1 else "requests"
     day_word = "day" if total_days == 1 else "days"
