@@ -666,6 +666,18 @@ def _prepare_answer(
                 ),
             )
         answer = _format_leave_request_answer(question, request_row)
+        # Update conversation context so follow-ups like "her leave balance"
+        # resolve to the requester, not a stale employee from earlier.
+        conversation_service.update_from_result(
+            context,
+            "leave_requests",
+            result={
+                "requests": [request_row.model_dump(mode="json")],
+                "filters_applied": {"approval_status": request_row.approval_status},
+            },
+            scope="single",
+            filters={"approval_status": request_row.approval_status},
+        )
         return _PreparedAnswer(
             conversation_id=resolved_id,
             context=context,
@@ -763,6 +775,7 @@ def _prepare_answer(
                             end_date=filters.get("end_date"),
                             date_mode=filters.get("date_mode") or "overlap",
                             currently_on_leave=bool(filters.get("currently_on_leave")),
+                            request_offset=context.last_request_offset,
                         )
                         metrics = None
                     elif context.last_intent == "leave_requests":
@@ -936,6 +949,14 @@ def _prepare_answer(
                     and context.last_intent
                     in {"leave_balance", "leave_requests", "employee_lookup"}
                     and not (context.last_document_name and _is_doc_followup)
+                    # Only reuse the employee for explicit follow-up cues.
+                    # A new general query ("Show pending leave requests")
+                    # must not be silently filtered by a stale employee.
+                    and re.search(
+                        r"\b(?:what about|how about|his|her|their|same)\b",
+                        question,
+                        re.IGNORECASE,
+                    )
                 ):
                     employee_id = context.last_employee_id
 
@@ -1374,10 +1395,11 @@ def _prepare_answer(
                 else:
                     lowered_q = question.lower()
                     req_limit = limit
-                    if re.search(r"\b(show\s+more|next\s+\d+|more\s+results)\b", lowered_q):
-                        req_limit = (limit or 50) * 3
-                        if req_limit < 30:
-                            req_limit = 30
+                    # Cap the page size so "show more" can advance.
+                    if not re.search(r"\b(show\s+more|next\s+\d+|more\s+results)\b", lowered_q):
+                        req_limit = min(req_limit or 50, 10)
+                    else:
+                        req_limit = 10
                     result = dispatch_query(
                         intent,
                         employees,
@@ -1390,6 +1412,7 @@ def _prepare_answer(
                         settings=settings,
                         document_names=comparison_names,
                         limit=req_limit,
+                        offset=context.last_request_offset,
                     )
 
             except AppError:

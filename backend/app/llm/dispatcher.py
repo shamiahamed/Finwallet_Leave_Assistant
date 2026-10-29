@@ -37,6 +37,7 @@ def dispatch_query(
     settings=None,
     document_names: list[str] | None = None,
     limit: int | None = None,
+    offset: int = 0,
 ):
     # Employee list
     if intent.intent == "employee_list":
@@ -108,6 +109,7 @@ def dispatch_query(
             end_date=intent.end_date,
             department=intent.department,
             limit=limit or 50,
+            offset=offset or getattr(intent, "request_offset", 0),
             date_mode=intent.date_mode,
         )
 

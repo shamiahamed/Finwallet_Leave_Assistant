@@ -92,12 +92,13 @@ class LeaveRequestService:
         end_date: date | None = None,
         department: str | None = None,
         limit: int = 50,
+        offset: int = 0,
         date_mode: str = "overlap",
     ) -> LeaveRequestListResponse:
         df, applied = self.filtered_frame(
             employee_id, leave_type, approval_status, start_date, end_date, department, date_mode
         )
-        page = df.head(limit)
+        page = df.iloc[offset : offset + limit]
         items = [
             LeaveRequestOut(
                 request_id=r["Request ID"],
