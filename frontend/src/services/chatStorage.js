@@ -16,6 +16,7 @@ export function createConversation() {
     serverConversationId: null,
     title: "New chat",
     messages: [],
+    pinned: false,
     createdAt: now,
     updatedAt: now,
   };
@@ -44,6 +45,7 @@ function normalizeConversation(value) {
         ? value.title
         : "New chat",
     messages: value.messages.filter(isMessage),
+    pinned: Boolean(value.pinned),
     createdAt: Number(value.createdAt) || Date.now(),
     updatedAt: Number(value.updatedAt) || Date.now(),
   };

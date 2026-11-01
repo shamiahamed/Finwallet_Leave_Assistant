@@ -208,6 +208,15 @@ export function useChat() {
     setChatState((prev) => ({ ...prev, activeId: id }));
   }
 
+  function handleTogglePin(id) {
+    setChatState((prev) => ({
+      ...prev,
+      conversations: prev.conversations.map((c) =>
+        c.id === id ? { ...c, pinned: !c.pinned, updatedAt: Date.now() } : c
+      ),
+    }));
+  }
+
   function handleDeleteConversation(id) {
     if (loadingId === id) return;
 
@@ -239,6 +248,7 @@ export function useChat() {
     handleRetry,
     handleNewChat,
     handleSelectConversation,
+    handleTogglePin,
     handleDeleteConversation,
     updateConversation,
     sendQuestion,

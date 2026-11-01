@@ -20,6 +20,7 @@ function App() {
     handleRetry,
     handleNewChat,
     handleSelectConversation,
+    handleTogglePin,
     handleDeleteConversation,
   } = useChat();
 
@@ -34,6 +35,7 @@ function App() {
         onNewChat={handleNewChat}
         onSelect={handleSelectConversation}
         onDelete={handleDeleteConversation}
+        onTogglePin={handleTogglePin}
         busy={sending}
       />
 

@@ -11,9 +11,13 @@ function Sidebar({
   onNewChat,
   onSelect,
   onDelete,
+  onTogglePin,
   busy,
 }) {
-  const recent = [...conversations].sort((a, b) => b.updatedAt - a.updatedAt);
+  const recent = [...conversations].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.updatedAt - a.updatedAt;
+  });
 
   return (
     <aside className={`sidebar ${open ? "open" : "collapsed"}`}>
@@ -60,6 +64,16 @@ function Sidebar({
                   {conversation.messages.length === 1 ? "" : "s"} ·{" "}
                   {formatUpdated(conversation.updatedAt)}
                 </span>
+              </button>
+              <button
+                type="button"
+                className="conversation-pin"
+                onClick={() => onTogglePin?.(conversation.id)}
+                disabled={busy}
+                title={conversation.pinned ? "Unpin" : "Pin"}
+                aria-label={`${conversation.pinned ? "Unpin" : "Pin"} conversation: ${conversation.title}`}
+              >
+                {conversation.pinned ? "📌" : "📍"}
               </button>
               <button
                 type="button"
