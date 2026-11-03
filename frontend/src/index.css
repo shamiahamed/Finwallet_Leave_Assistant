@@ -1502,3 +1502,7 @@ body {
   font-size: 0.72rem;
   color: var(--text-faint);
 }
+
+.conversation-pin { opacity: 0; transition: opacity .15s ease; }
+.conversation-item:hover .conversation-pin, .conversation-pin[title="Unpin"] { opacity: 1; }
+
