@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 function formatUpdated(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return "";
@@ -16,78 +14,10 @@ function Sidebar({
   onTogglePin,
   busy,
 }) {
-  const [query, setQuery] = useState("");
-  const filtered = conversations.filter((c) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    if (c.title?.toLowerCase().includes(q)) return true;
-    return (c.messages || []).some((m) => m.text?.toLowerCase().includes(q));
+  const recent = [...conversations].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return b.updatedAt - a.updatedAt;
   });
-  const pinned = filtered.filter((c) => c.pinned);
-  const recent = filtered
-    .filter((c) => !c.pinned)
-    .sort((a, b) => b.updatedAt - a.updatedAt);
-  // close drawer on select handled by parent; ensure selection works
-  const handleSelect = (id) => {
-    onSelect(id);
-  };
-
-  const renderConversation = (conversation) => (
-    <div
-      key={conversation.id}
-      className={`conversation-item ${
-        conversation.id === activeId ? "active" : ""
-      }`}
-    >
-      <button
-        type="button"
-        className="conversation-select"
-        onClick={() => handleSelect(conversation.id)}
-        title={conversation.title}
-      >
-        <span className="conversation-title">{conversation.title}</span>
-        <span className="conversation-meta">
-          {conversation.messages.length} message
-          {conversation.messages.length === 1 ? "" : "s"} ·{" "}
-          {formatUpdated(conversation.updatedAt)}
-        </span>
-      </button>
-      <button
-        type="button"
-        className="conversation-pin"
-        onClick={() => onTogglePin?.(conversation.id)}
-        disabled={busy}
-        title={conversation.pinned ? "Unpin" : "Pin"}
-        aria-label={`${conversation.pinned ? "Unpin" : "Pin"} conversation: ${conversation.title}`}
-      >
-        {conversation.pinned ? "📌" : "📍"}
-      </button>
-      <button
-        type="button"
-        className="conversation-delete"
-        onClick={() => onDelete(conversation.id)}
-        disabled={busy}
-        title="Delete conversation"
-        aria-label={`Delete conversation: ${conversation.title}`}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-          <path d="M10 11v6M14 11v6" />
-          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-        </svg>
-      </button>
-    </div>
-  );
 
   return (
     <aside className={`sidebar ${open ? "open" : "collapsed"}`}>
@@ -113,37 +43,64 @@ function Sidebar({
           <span aria-hidden="true">+</span> New Chat
         </button>
 
-        <div className="sidebar-search">
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search chats"
-            aria-label="Search conversations"
-          />
-          {query && (
-            <button type="button" onClick={() => setQuery("")} aria-label="Clear search">
-              ✕
-            </button>
-          )}
-        </div>
-
-        {pinned.length > 0 && (
-          <>
-            <div className="sidebar-section-label">Pinned</div>
-            <nav className="conversation-list" aria-label="Pinned conversations">
-              {pinned.map((conversation) => renderConversation(conversation))}
-            </nav>
-          </>
-        )}
-
         <div className="sidebar-section-label">Recent conversations</div>
         <nav className="conversation-list" aria-label="Conversation history">
-          {recent.length === 0 && pinned.length === 0 ? (
-            <p className="sidebar-empty">No conversations found.</p>
-          ) : (
-            recent.map((conversation) => renderConversation(conversation))
-          )}
+          {recent.map((conversation) => (
+            <div
+              key={conversation.id}
+              className={`conversation-item ${
+                conversation.id === activeId ? "active" : ""
+              }`}
+            >
+              <button
+                type="button"
+                className="conversation-select"
+                onClick={() => onSelect(conversation.id)}
+                title={conversation.title}
+              >
+                <span className="conversation-title">{conversation.title}</span>
+                <span className="conversation-meta">
+                  {conversation.messages.length} message
+                  {conversation.messages.length === 1 ? "" : "s"} ·{" "}
+                  {formatUpdated(conversation.updatedAt)}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="conversation-pin"
+                onClick={() => onTogglePin?.(conversation.id)}
+                disabled={busy}
+                title={conversation.pinned ? "Unpin" : "Pin"}
+                aria-label={`${conversation.pinned ? "Unpin" : "Pin"} conversation: ${conversation.title}`}
+              >
+                {conversation.pinned ? "📌" : "📍"}
+              </button>
+              <button
+                type="button"
+                className="conversation-delete"
+                onClick={() => onDelete(conversation.id)}
+                disabled={busy}
+                title="Delete conversation"
+                aria-label={`Delete conversation: ${conversation.title}`}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                  <path d="M10 11v6M14 11v6" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                </svg>
+              </button>
+            </div>
+          ))}
         </nav>
 
         <p className="sidebar-note">
