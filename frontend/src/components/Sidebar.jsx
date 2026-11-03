@@ -90,20 +90,20 @@ function Sidebar({
     <aside className={`sidebar ${open ? "open" : "collapsed"}`}>
       <div className="sidebar-inner">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "4px 6px 8px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
             <span className="brand-icon small" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                 <path d="M12 2L14.2 8.8L21 9.5L16 14.2L17.5 21L12 17.5L6.5 21L8 14.2L3 9.5L9.8 8.8L12 2Z" fill="#D97757" />
               </svg>
             </span>
-            <span className="sidebar-brand-text">Finwallet</span>
+            <span className="sidebar-brand-text" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Finwallet</span>
           </div>
           <button
             type="button"
             onClick={() => setSearchOpen(true)}
             aria-label="Search conversations"
             title="Search conversations"
-            style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "#6B665E" }}
+            style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "#6B665E", padding: 8, margin: -8, borderRadius: 8, flexShrink: 0 }}
           >
             🔍
           </button>
@@ -140,9 +140,10 @@ function Sidebar({
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              width: "min(560px, 90vw)", background: "#fff", borderRadius: 12,
+              width: "min(560px, 92vw)", background: "#fff", borderRadius: 12,
               border: "1px solid #E8E3DA", boxShadow: "0 10px 30px rgba(36,34,32,0.18)",
               padding: 16,
+              margin: "0 12px",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
@@ -153,9 +154,9 @@ function Sidebar({
                 placeholder="Search chats"
                 aria-label="Search conversations"
                 autoFocus
-                style={{ flex: 1, padding: "8px 12px", border: "1px solid #DDD7CD", borderRadius: 8, fontSize: 14 }}
+                style={{ flex: 1, padding: "10px 12px", border: "1px solid #DDD7CD", borderRadius: 8, fontSize: 14 }}
               />
-              <button type="button" onClick={() => { setSearchOpen(false); setQuery(""); }} aria-label="Close search" style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 18 }}>
+              <button type="button" onClick={() => { setSearchOpen(false); setQuery(""); }} aria-label="Close search" style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 18, color: "#6B665E", padding: 4 }}>
                 ✕
               </button>
             </div>
